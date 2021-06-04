@@ -4,13 +4,12 @@ Mostly taken from `torch_geometric.data.DataLoader` with some modifications
 """
 
 import torch.utils.data
-# from torch.utils.data.dataloader import default_collate
+from torch.utils.data import Dataset
 
 from factor_gnn.batch import Batch
 
-from torch import Tensor
-from typing import TypeVar, Generic, Iterable, Iterator, Sequence, List, Optional, Tuple
-from torch.utils.data import Dataset
+
+# from torch.utils.data.dataloader import default_collate
 
 
 class DataLoaderBipartite(torch.utils.data.DataLoader):
@@ -35,4 +34,3 @@ class DataLoaderBipartite(torch.utils.data.DataLoader):
             collate_fn=lambda data_list:Batch.from_data_list(data_list),
             **kwargs
         )
-

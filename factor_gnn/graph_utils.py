@@ -2,18 +2,11 @@
 functions `ws_graph`, `connected_ws_graph`, `compute_stats` are taken from https://github.com/facebookresearch/graph2nn
 
 """
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import networkx as nx
-import multiprocessing as mp
-import os
-from networkx.utils import py_random_state
-import time
-from sklearn.datasets import make_sparse_spd_matrix, make_spd_matrix
-from networkx.linalg.graphmatrix import adjacency_matrix
-from numba import jit
+import numpy as np
 import torch
+from networkx.utils import py_random_state
+from numba import jit
 
 
 def compute_count(channel, group):

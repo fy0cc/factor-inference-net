@@ -1,16 +1,14 @@
-import torch
-from torch_geometric.data import InMemoryDataset
-from torch_geometric.data import Data
-import numpy as np
-from scipy import stats, sparse
-import pickle
-import os
-import deepdish as dd
 import glob
-from itertools import combinations
+import os
+import pickle
+from typing import Union
 
+import deepdish as dd
+import numpy as np
+import torch
 from torch import Tensor
-from typing import TypeVar, Generic, Iterable, Iterator, Sequence, List, Optional, Tuple, Union
+from torch_geometric.data import Data
+from torch_geometric.data import InMemoryDataset
 
 Array = Union[Tensor, np.ndarray]
 

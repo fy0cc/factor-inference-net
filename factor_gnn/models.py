@@ -1,21 +1,11 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.data import InMemoryDataset
-from torch_geometric.data import Data
-import torch_geometric.nn as gnn
-import numpy as np
-import pickle
-
-from torch_geometric.nn import GATConv
+from typing import List, Optional, Tuple, Union
 
 from torch import Tensor
-from typing import TypeVar, Generic, Iterable, Iterator, Sequence, List, Optional, Tuple, Union
+from torch_geometric.data import Data
+from torch_geometric.nn import GATConv
 
 from .gru_layernorm_cell import LayerNormGRUCell
-
 from .layers import *
-from .batch import Batch
 
 NDIM_HIDDEN = 64
 
@@ -353,6 +343,7 @@ class MultiGATConvStack(nn.Module):
     """
     Stacked Factor-GNN
     """
+
     def __init__(
             self,
             nin1: int,

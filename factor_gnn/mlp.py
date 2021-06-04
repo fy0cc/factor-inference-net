@@ -1,8 +1,5 @@
-import torch
-from torch import Tensor
-from torch.nn import Parameter
-import torch.nn.functional as F
 import torch.nn as nn
+from torch import Tensor
 
 
 class MLP(nn.Module):

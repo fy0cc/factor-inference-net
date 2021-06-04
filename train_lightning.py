@@ -10,6 +10,7 @@ import signal
 import sys
 import uuid
 from copy import deepcopy
+
 import pytorch_lightning as pl
 from matplotlib import pyplot as plt
 from pytorch_lightning import LightningDataModule
@@ -17,12 +18,14 @@ from pytorch_lightning.callbacks import Callback, ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.metrics import Metric, ExplainedVariance
 from torch.utils.data import DataLoader
+
 sys.path.append(os.getcwd())
 from sacred import Experiment
 from dataset_ingredient import data_ingredient, load_data
 import subprocess
 
 from factor_gnn.models import *
+from factor_gnn.batch import Batch
 
 
 class Averager(Metric):

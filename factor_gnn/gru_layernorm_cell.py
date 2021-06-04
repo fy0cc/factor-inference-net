@@ -2,8 +2,9 @@
 source:
 https://github.com/ElektrischesSchaf/LayerNorm_GRU/blob/main/GRU_layernorm_cell.py
 """
-import torch
 import math
+
+import torch
 
 
 class LayerNormGRUCell(torch.nn.Module):

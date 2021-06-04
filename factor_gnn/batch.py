@@ -2,12 +2,12 @@
 Mostly taken from `torch_geometric.data.Batch` with some modifications
 
 """
+from typing import List
+
 import torch
 import torch_geometric
-from torch_geometric.data import Data
-
 from torch import Tensor
-from typing import TypeVar, Generic, Iterable, Iterator, Sequence, List, Optional, Tuple
+from torch_geometric.data import Data
 
 
 class Batch(Data):
