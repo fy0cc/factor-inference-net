@@ -4,7 +4,7 @@ import torch
 from sacred import Ingredient
 
 from factor_gnn.dataloader import DataLoaderBipartite
-from factor_gnn.datasets import ThirdOrderDatasetBipartite, QM9Bipartite, GGMDatasetBipartite
+from factor_gnn.datasets import ThirdOrderDatasetBipartite, GGMDatasetBipartite
 
 data_ingredient = Ingredient("dataset")
 
@@ -31,8 +31,6 @@ def cfg():
         dset = ThirdOrderDatasetBipartite(datapath, normalize_target=normalize_target,singleton_factor=singleton_factor)
     elif datatype == "gaussianbipartite":
         dset = GGMDatasetBipartite(datapath, singleton_factor=singleton_factor, refresh=refresh, target="precision")
-    elif datatype=="qm9bipartite":
-        dset = QM9Bipartite(datapath)
     else:
         raise NotImplementedError("graph type not supported")
     sample = dset[0]

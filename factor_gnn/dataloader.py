@@ -7,7 +7,6 @@ import torch.utils.data
 # from torch.utils.data.dataloader import default_collate
 
 from factor_gnn.batch import Batch
-from factor_gnn.utils import augment_permutations
 
 from torch import Tensor
 from typing import TypeVar, Generic, Iterable, Iterator, Sequence, List, Optional, Tuple

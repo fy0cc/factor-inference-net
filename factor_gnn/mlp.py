@@ -45,8 +45,6 @@ class MLP(nn.Module):
 
         self.output = nn.Linear(ndim_hidden, ndim_out, bias=True)
         self._init_weights_kaiming()
-        # self._init_weights_zero()
-        # self._init_weights_xavier()
 
     def _init_weights_kaiming(self):
         nn.init.kaiming_normal_(self.input.weight.data,

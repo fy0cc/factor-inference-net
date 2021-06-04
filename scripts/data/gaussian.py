@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Sep  7 17:27:11 2018
-
-@author: Rajkumar Raju
-modified by Yicheng
+@author Yicheng
+functions `GABP_t`,`generateBroadH`,`generateData` written by Rajkumar Raju
 """
 import os
 import shutil

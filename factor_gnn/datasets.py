@@ -352,38 +352,3 @@ class ThirdOrderDatasetBipartite(InMemoryDataset):
         os.makedirs(os.path.dirname(self.processed_paths[0]), exist_ok=True)
         torch.save((data, slices), self.processed_paths[0])
         return data, slices
-
-
-class QM9Bipartite(InMemoryDataset):
-    chem_accu = torch.tensor(
-        [.1, .1, .00158, .00158, .00158, 1.2, .000044, .00158, .00158, .00158, .00158, .05]
-    )
-
-    def __init__(self,
-                 root: str,
-                 transform=None,
-                 pre_transform=None
-                 ) -> None:
-        super(QM9Bipartite, self).__init__(root, transform, pre_transform)
-        self.data, self.slices = torch.load(self.processed_paths[0])
-
-    @property
-    def raw_file_names(self):
-        return ['qm9bipartite.pt']
-
-    @property
-    def processed_file_names(self):
-        return ["data.pt"]
-
-    def download(self):
-        # Download to `self.raw_dir`.
-        pass
-
-    def process(self):
-        # read raw data list
-        data_filepath = os.path.join(self.raw_dir, self.raw_file_names[0])
-        data_list = torch.load(data_filepath)
-        data, slices = self.collate(data_list)
-        os.makedirs(os.path.dirname(self.processed_paths[0]), exist_ok=True)
-        torch.save((data, slices), self.processed_paths[0])
-        return data, slices

@@ -1,3 +1,7 @@
+"""
+functions `ws_graph`, `connected_ws_graph`, `compute_stats` are taken from https://github.com/facebookresearch/graph2nn
+
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -170,10 +174,6 @@ def rotate_to_adj(A, adj, max_iter=1000, atol=1e-8):
                 for j in range(i + 1, n):
                     if off_zero_mask[i, j]:
                         A1[i, j] = A1[j, i] = 0.0
-
-    #         if np.all(np.abs(A1[off_zero_mask]) < atol):
-    #             isconverged = True
-    #             A1[off_zero_mask] = 0.0
 
     return A1, isconverged, counter
 
