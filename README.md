@@ -4,16 +4,7 @@ codebase for factor inference network
 
 ## Enviroments
 
-### Install `pytorch-geometric`
-```bash
-# cpu version
-pip3 install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
-pip3 install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
-pip3 install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
-pip3 install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
-pip3 install torch-geometric
-
-```
+TODO
 
 ## Generate datasets
 
