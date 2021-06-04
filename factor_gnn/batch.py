@@ -1,7 +1,6 @@
 """
 Mostly taken from `torch_geometric.data.Batch` with some modifications
 
-@author: Yicheng Fei
 """
 import torch
 import torch_geometric

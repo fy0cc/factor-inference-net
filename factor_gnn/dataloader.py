@@ -1,7 +1,6 @@
 """
 Mostly taken from `torch_geometric.data.DataLoader` with some modifications
 
-@author: Yicheng Fei
 """
 
 import torch.utils.data
