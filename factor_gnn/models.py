@@ -28,7 +28,6 @@ class MultiGATConvGRU(nn.Module):
             decode_method: str = "varstate_mlp",
             gat_module: str = "mygat",
             aggregation_method: str = "sum",
-            asrnn_kwargs: dict = {},
             damping: float = 0.0,  # smoothing the hidden state update
             decode_series_len: int = 1,  # used with decode_method='varseries_mlp'
             add_self_loops=False,

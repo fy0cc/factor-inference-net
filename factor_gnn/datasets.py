@@ -41,7 +41,7 @@ def format_ggm_data(P: Array, adj: Array, marginalP: Array, target: str = "preci
     elif target=="covariance":
         y = torch.tensor(1.0/marginalP, dtype=torch.float32).view(num_node, 1)
     else:
-        raise NotImplementedError("targe should be precision/covariance")
+        raise NotImplementedError("target should be precision/covariance")
     data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
     return data
 
@@ -50,7 +50,7 @@ def format_thirdorder_bipartite(data_entry: dict, singleton_factor: bool = False
     """
     input:
         data_entry (dict): has keys
-            nfactor, nnode, edge_index,edge_attr,edte_type
+            nfactor, nnode, edge_index,edge_attr,edge_type
 
     output:
         data (Data): has attributes:
@@ -58,10 +58,10 @@ def format_thirdorder_bipartite(data_entry: dict, singleton_factor: bool = False
     
     """
     # print(data_entry)
+    global xf, xf, ndim_xf, factor_types, factor_types
     dic, y = data_entry
     nf = dic["nfactor"]
     edge_index = []
-    counter = 0
     for i in range(dic["nfactor"]):
         for j in dic["edge_index"][i]:
             edge_index.append([i, j - 1])  # In Julia, index start from 1
@@ -94,13 +94,11 @@ def format_thirdorder_bipartite(data_entry: dict, singleton_factor: bool = False
             xf_new[xf.shape[0]:, :ndim_xv] = xv
             xf = xf_new
         else:
-            ndim_common = ndim_xv
             xf = torch.clone(xv)
 
     # first dimension of x_factor is the factor type
     xf = torch.cat([factor_types.float(), xf], dim=-1)
     y2 = torch.tensor(y, dtype=torch.float32)
-    y1 = torch.zeros(xf.shape[0], 1, dtype=torch.float32)  # dummy target
     data = Data(edge_index=edge_index)
     data.x1 = xf
     data.x2 = xv
@@ -151,7 +149,7 @@ def format_ggm_data_bipartite(P: Array, adj: Array, marginalP: Array, target: st
                 factor_types.append([0])
                 counter += 1
         # singleton factor
-        if singleton_factor==True:
+        if singleton_factor:
             edge_index.append([counter, i])
             factor_types.append([1])
             xf.append([P[i, i]])
@@ -159,7 +157,6 @@ def format_ggm_data_bipartite(P: Array, adj: Array, marginalP: Array, target: st
 
     num_edge = len(edge_index)
     edge_index = torch.tensor(np.asarray(edge_index), dtype=torch.long).t()
-    num_fnode = counter
     xf = torch.cat([torch.tensor(factor_types), torch.tensor(xf)], dim=-1)
     assert tuple(edge_index.shape)==(2, num_edge), "size incorrect"
     # assert tuple(xf.shape) == (num_fnode, 1), "size incorrect"

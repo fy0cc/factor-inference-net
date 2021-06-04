@@ -23,7 +23,7 @@ def compute_count(channel, group):
 def ws_graph(n, k, p, seed=1):
     """Returns a ws-flex graph, k can be real number in [2,n]
     """
-    assert k >= 2 and k <= n
+    assert 2 <= k <= n
     # compute number of edges:
     edge_num = int(round(k*n/2))
     count = compute_count(edge_num, n)
