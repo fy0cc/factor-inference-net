@@ -4,7 +4,17 @@ codebase for factor inference network
 
 ## Enviroments
 
-TODO
+- `Python 3.8`
+
+- `PyTorch 1.8.0`: please follow instructions on [https://pytorch.org/](https://pytorch.org/) to install PyTorch based on your OS and hardware
+
+- `PyTorch Geometric 1.7.0`: please follow instructions on [https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html) to install Pytorch Geometric based on your OS and hardware
+
+Other packages can be installed via:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Generate datasets
 
