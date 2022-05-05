@@ -1,6 +1,6 @@
-# factor-inference-net
+# Factor Iteration Graph Neural Network
 
-codebase for factor inference network
+codebase for Factor Iteration Graph Neural Network(figNN)
 
 ## Enviroments
 
