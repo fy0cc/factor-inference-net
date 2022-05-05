@@ -1,6 +1,6 @@
 #!python
 from __future__ import division
-from __future__ import print_function
+import faulthandler; faulthandler.enable()
 
 import inspect
 import json
@@ -15,8 +15,8 @@ import pytorch_lightning as pl
 from matplotlib import pyplot as plt
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.callbacks import Callback, ModelCheckpoint
+from pytorch_lightning.metrics import Metric, R2Score, ExplainedVariance
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.metrics import Metric, ExplainedVariance
 from torch.utils.data import DataLoader
 
 sys.path.append(os.getcwd())
@@ -26,6 +26,7 @@ import subprocess
 
 from factor_gnn.models import *
 from factor_gnn.batch import Batch
+from factor_gnn.datasets import *
 
 
 class Averager(Metric):
@@ -78,6 +79,7 @@ class FactorGraphDataModule(LightningDataModule):
         super().__init__()
         self.args = args
         self.batch_size = self.args["batch_size"]
+        self.setup()
 
     def prepare_data(self):
         # called only on 1 GPU
@@ -171,93 +173,146 @@ class GNNSystem(pl.LightningModule):
         else:
             raise NotImplementedError(f"nstep scheduling method {self.nstep_schedule_method} not implemented")
 
+    def _maybe_crop_target(self,yhat,y):
+        trainset = self.train_dataloader().dataset
+        # trainset = self.trainer._data_connector._train_dataloader_source.dataloader().dataset
+        if isinstance(trainset, LDPCDatasetBasic):
+            M = trainset.M
+            N = trainset.N
+            yhat = yhat.view(-1,N,yhat.shape[-1])
+            yhat = yhat[:,:M,:].reshape(-1,1).contiguous()
+            y = y.view(-1,N,y.shape[-1])
+            y = y[:,:M,:].reshape(-1,1).contiguous()
+            return yhat, y
+        else:
+            return yhat,y
+    
     def training_step(self, g, batch_idx):
         B = g.y.shape[0]
         g = g.to(next(self.model.parameters()).device)
         yhat = self.model.forward(g, output_dynamics=False, nstep=self.get_nstep())
+        yhat, y = self._maybe_crop_target(yhat, g.y)
+        B = y.shape[0]
         if self.architecture in ["cnf", "cnf2"]:
             loss = yhat[0].sum()/g.num_graphs
         else:
-            loss = self.criterion(yhat, g.y)
+            loss = self.criterion(yhat, y)
             if self.loss_fn=='bce':  # add -entropy(data) to make loss KL divergence
-                loss -= self.criterion(g.y.exp(), g.y.exp())
+                if isinstance(self.train_dataloader().dataset, ThirdOrderDatasetBipartite):
+                    loss -= torch.nn.functional.binary_cross_entropy(y.sigmoid(), y.sigmoid())
+                # loss -= self.criterion(g.y.exp(), g.y.exp())
 
         # update metrics
-        self.log("train_loss", self.train_loss(loss, B), prog_bar=True, logger=False)
-        if self.architecture in ['rnn', 'ode', 'stack']:
-            if self.loss_fn=='bce':
-                self.train_metrics.update(yhat.sigmoid(), g.y)
+        if self.loss_fn == 'bce' and isinstance(self.train_dataloader().dataset, LDPCDatasetBasic):
+            prediction = (yhat > 0).long()   # (M * B, 1)
+            error = (prediction - y).abs().mean()
+            # self.log("train_loss", self.train_loss(error, 1.0), prog_bar=True,logger=True, on_step=True)
+            self.log("train_loss", error, prog_bar=True,logger=True, on_step=True, on_epoch=True)
+        else:
+            self.log("train_loss", loss * B, prog_bar=True,logger=True, on_step=True, on_epoch=True)
+            # self.log("train_loss", self.train_loss(loss, B), prog_bar=True,logger=True, on_step=True)
+        if self.architecture in ['rnn', 'ode','stack']:
+            if self.loss_fn == 'bce':
+                if isinstance(self.train_dataloader().dataset, ThirdOrderDatasetBipartite):
+                    self.train_metrics.update(yhat.sigmoid(), y)
+                if isinstance(self.train_dataloader().dataset, LDPCDatasetBasic):
+                    self.train_metrics.update(prediction, y)
             else:
-                self.train_metrics.update(yhat, g.y)
+                self.train_metrics.update(yhat, y)
         return loss
 
+    def train_dataloader(self):
+        return self.trainer._data_connector._train_dataloader_source.dataloader()
     def validation_step(self, g, batch_idx):
         if batch_idx==0:
             self.plot_graph_val = g.data_list[0]
         B = g.y.shape[0]
         g = g.to(next(self.model.parameters()).device)
         yhat = self.model.forward(g, output_dynamics=False, nstep=self.get_nstep())
+        yhat, y = self._maybe_crop_target(yhat, g.y)
+        B = y.shape[0]
         if self.should_plot():
-            self.y_plot.append(g.y.detach().cpu())
+            self.y_plot.append(y.detach().cpu())
             self.ypred_plot.append(yhat.detach().cpu())
         if self.architecture in ["cnf", "cnf2"]:
             loss = yhat[0].sum()/g.num_graphs
         else:
-            loss = self.criterion(yhat, g.y)
-            if self.loss_fn=='bce':  # add -entropy(data) to make loss KL divergence
-                loss -= self.criterion(g.y.exp(), g.y.exp())
+            loss = self.criterion(yhat, y)
+            if isinstance(self.train_dataloader().dataset, ThirdOrderDatasetBipartite):
+                loss -= torch.nn.functional.binary_cross_entropy(y.sigmoid(), y.sigmoid())
         # update metrics
-        self.log("val_loss", self.val_loss(loss, B), prog_bar=True, logger=False, sync_dist=True)
-        if self.architecture in ['rnn', 'ode', 'stack']:
-            if self.loss_fn=='bce':
-                self.val_metrics.update(yhat.sigmoid(), g.y)
+        if self.loss_fn == 'bce' and isinstance(self.train_dataloader().dataset, LDPCDatasetBasic):
+            prediction = (yhat > 0).long()   # (M * B, 1)
+            error = (prediction - y).abs().mean()
+            # self.log("val_loss", self.val_loss(error, 1.0), prog_bar=True,logger=True, on_step=True, sync_dist=True)
+            self.log("val_loss", error, prog_bar=True,logger=True,  sync_dist=True, on_step=False, on_epoch=True)
+            loss = error
+        else:
+            self.log("val_loss", loss*B, prog_bar=True,logger=True, sync_dist=True, on_step=False, on_epoch=True)
+        # self.log("val_loss", self.val_loss(loss, B), prog_bar=True, logger=False, sync_dist=True)
+        if self.architecture in ['rnn', 'ode','stack']:
+            if self.loss_fn == 'bce':
+                if isinstance(self.train_dataloader().dataset, ThirdOrderDatasetBipartite):
+                    self.val_metrics.update(yhat.sigmoid(), y)
+                if isinstance(self.train_dataloader().dataset, LDPCDatasetBasic):
+                    self.val_metrics.update(prediction, y)
             else:
-                self.val_metrics.update(yhat, g.y)
+                self.val_metrics.update(yhat, y)
         self.log("lr", self.optimizers().optimizer.param_groups[0]['lr'], prog_bar=True, sync_dist=True)
-        if self.architecture in ['rnn', 'stack']:
+        if self.architecture in ['rnn','stack']:
             self.log("nsetp", self.get_nstep(), prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, g, batch_idx):
         B = g.y.shape[0]
         g = g.to(next(self.model.parameters()).device)
-        yhat = self.model.forward(g, output_dynamics=False, nstep=self.get_nstep())
-        if self.architecture in ["cnf", "cnf2"]:
-            loss = yhat[0].sum()/g.num_graphs
+        yhat = self.model.forward(g,output_dynamics=False, nstep=self.get_nstep())
+        yhat, y = self._maybe_crop_target(yhat, g.y)
+        if self.architecture in ["cnf","cnf2"]:
+            loss = yhat[0].sum() / g.num_graphs
         else:
-            loss = self.criterion(yhat, g.y)
-            if self.loss_fn=='bce':  # add -entropy(data) to make loss KL divergence
-                loss -= self.criterion(g.y.exp(), g.y.exp())
+            loss = self.criterion(yhat, y) 
+            if self.loss_fn == 'bce':     # add -entropy(data) to make loss KL divergence
+                loss -= torch.nn.functional.binary_cross_entropy(y.sigmoid(), y.sigmoid())
         # update metrics
-        self.log("test_loss", self.test_loss(loss, B), prog_bar=True, logger=False, sync_dist=True)
-        if self.architecture in ['rnn', 'ode', 'stack']:
-            if self.loss_fn=='bce':
-                self.test_metrics.update(yhat.sigmoid(), g.y)
+        if self.loss_fn == 'bce' and isinstance(self.train_dataloader().dataset, LDPCDatasetBasic):
+            prediction = (yhat > 0).long()   # (M * B, 1)
+            error = (prediction - y).abs().mean()
+            self.log("test_loss", error, prog_bar=True,logger=True, on_step=True, on_epoch=True, sync_dist=True)
+            self.val_loss.update(error,1.0)
+            loss = error
+        else:
+            self.log("test_loss", loss, prog_bar=True,logger=True, on_step=True, on_epoch=True, sync_dist=True)
+            self.val_loss.update(loss, 1.0)
+        if self.architecture in ['rnn', 'ode','stack']:
+            if self.loss_fn == 'bce':
+                self.test_metrics.update(yhat.sigmoid(), y)
             else:
-                self.test_metrics.update(yhat, g.y)
+                self.test_metrics.update(yhat, y)
         return loss
 
     def training_epoch_end(self, outputs):
-        self.log("train_loss_epoch", self.train_loss.compute(), prog_bar=True, logger=True)
-        if self.architecture in ['rnn', 'ode', 'stack']:
+        # self.log("train_loss_epoch", self.train_loss.compute(), prog_bar=True, logger=True)
+        if self.architecture in ['rnn', 'ode','stack']:
             self.log_dict(self.train_metrics.compute(), prog_bar=True)
             self.train_metrics.reset()
-        self.train_loss.reset()
+        # self.train_loss.reset()
 
     def validation_epoch_end(self, outputs):
-        self.log("val_loss_epoch", self.val_loss.compute(), prog_bar=True, logger=True, on_step=False)
-        self.val_loss.reset()
-        if self.architecture in ['rnn', 'ode', 'stack']:
+        # self.log("val_loss_epoch", self.val_loss.compute(), prog_bar=True, logger=True, on_step=False)
+        self.log("val_loss_epoch", torch.stack(outputs).mean())
+        # self.val_loss.reset()
+        if self.architecture in ['rnn', 'ode','stack']:
             metrics_value = self.val_metrics.compute()
             self.log_dict(metrics_value, prog_bar=True, logger=True, on_epoch=True)
-            if (self.current_epoch + 1)%self.plot_interval==0:
+            if (self.current_epoch +1) %self.plot_interval == 0:
                 self._scatter_plot(self.val_metrics['val_r2'], prefix='val')
             self.val_metrics.reset()
         elif self.architecture in ["cnf", 'cnf2']:
             if self.should_plot():
+                self._plot_samples(self.plot_graph_val, prefix='val')
                 self.y_plot = []
                 self.ypred_plot = []
-
     def should_plot(self):
         return (self.current_epoch + 1)%self.plot_interval==0
 
@@ -278,6 +333,12 @@ class GNNSystem(pl.LightningModule):
         plt.gca().set_aspect('equal')
         r2 = metric.compute()
         plt.legend([f'r2={r2}', ""])
+        if isinstance(self.logger, WandbLogger):
+            self.log_dict(
+                {
+                    f"{prefix}_prediction": wandb.Image(plt)
+                },
+                )
         plt.close()
 
     def test_epoch_end(self, outputs):
@@ -326,9 +387,19 @@ class GNNSystem(pl.LightningModule):
                 patience=self.scheduler_patience,
             )
             sch_dic = {
-                'scheduler':scheduler,
-                'interval':'epoch',
-                'monitor':'val_loss_epoch',
+                'scheduler': scheduler,
+                'interval': 'epoch',
+                'monitor': 'val_loss_epoch',
+            }
+        elif self.scheduler_name == 'exponential':
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                opt, gamma=self.gamma,
+                # patience=self.scheduler_patience,
+            )
+            sch_dic = {
+                'scheduler': scheduler,
+                'interval': 'epoch',
+                'monitor': 'val_loss_epoch',
             }
         else:
             raise NotImplementedError(self.scheduler_name)
@@ -395,17 +466,20 @@ def config_hyperparameter(args, model_args):
         checkpoint=20,
         init_lr=1e-3,
         max_lr=1e-1,
+        gamma = 0.98,  # decay coefficient for exponeitial learning rate
         weight_decay=1e-6,
         # batch_size = 512,
         patience=10,
         scheduler_patience=5,
         nstep_schedule_method="random",  # ['constant','linear','random']
+        bn=True,
         nstep_start=30,  # used in ['linear','random']
         nstep_end=50,  # used in ['linear','random']
         nstep_warmup_epoch=1,  # warm-up epochs using "nstep_start", used in ['linear','random']
         nstep_linear_epochs=50,  # #epochs taken to linearly change from "nstep_start" to "nstep_end"
         optimizer_name='adam',
         scheduler_name='plateau',
+        rnn_method='gru',
     )
 
     model_args.update(
@@ -427,7 +501,7 @@ def config_hyperparameter(args, model_args):
         gat_module='gat',
         add_self_loops=False,
         use_factor_net=True,
-        use_bn=True,
+        use_bn=False,
         alpha=0.0,
         beta=1.0,
     )
@@ -447,6 +521,7 @@ def config_control(args):
         record_dynamics=False,  # whether to record recurrent dynamics of latent states
         record_dynamics_interval=10,  # interval of epochs to record latent dynamics
         readout="varmlp",
+        nstep_schedule_method="constant", # ['constant','linear','random']
         snap_interval=1,
         snap_state_interval=30,
         plot_interval=5,
@@ -494,6 +569,56 @@ def sigterm_handler(signum, frame):
     print("hander called with signal number: {}".format(signum))
     raise SIGTERMERROR("sigterm received")
 
+def test_ldpc(args, dm):
+    """
+    Test trained GNN on LDPC test dataset
+    """
+    # system.load_from_checkpoint(args['checkpoint_path'], model_kwargs=model_kwargs, control_kwargs=control_kwargs)
+    # device = system.device
+    device = args['device']
+    system = GNNSystem.load_from_checkpoint(args['checkpoint_path'])
+    system.to(device)
+    test_loader = dm.test_dataloader()
+    
+    N = 96
+    M = 48
+    # the following code is copied and modifed from FGNN codebase: https://github.com/zzhang1987/Factor-Graph-Neural-Network
+    acc_seq = []
+    acc_cnt = np.zeros((5, 6))
+    acc_tot = np.zeros((5, 6))
+    tot = 0
+    system.eval()
+    # pdb.set_trace()
+    SNR = [0, 1, 2, 3, 4]
+    for g in tqdm(test_loader):
+        g = g.to(next(system.model.parameters()).device)
+        cur_SNR = g.x2[:,0].contiguous().view(-1,N)[:,0]  # (B,)
+        sigma_b = g.x2[:,1].contiguous().view(-1,N)[:,0]
+        g.x2 = g.x2[:,2:]
+
+        yhat = system.model.forward(g,output_dynamics=False, nstep=system.get_nstep())
+        yhat = yhat.reshape(-1,N)
+        label = g.y.reshape(-1,N)
+        B = label.shape[0]
+
+        pred_int = (yhat >= 0).long().squeeze()  # (B,N)
+        label = label.squeeze()  # (B,N)
+
+        for csnr in SNR:
+            for b in range(6):
+                indice = (sigma_b.long() == b) & (abs(cur_SNR - csnr) < 1e-3)
+                acc_cnt[csnr][b] += torch.sum(pred_int[indice, :48]
+                                              == label[indice, :48]).item()
+                acc_tot[csnr][b] += torch.sum(indice) * 48
+
+        all_correct = torch.sum(pred_int[:, :48] == label[:, :48])
+
+        acc_seq.append(all_correct.item())
+        tot += np.prod(label.shape) // 2
+
+    print(1 - sum(acc_seq) / tot)
+    err_class = 1 - np.divide(acc_cnt, acc_tot)
+    print(torch.FloatTensor(err_class))
 
 signal.signal(signal.SIGTERM, sigterm_handler)
 
@@ -518,6 +643,7 @@ def run(args, dataset, model_args):
         'burnin_epochs',
         'init_lr',
         'max_lr',
+        'gamma',
         'epochs',
         'optimizer_name',
         'scheduler_name',
@@ -575,6 +701,8 @@ def run(args, dataset, model_args):
     trainer = pl.Trainer(
         min_epochs=1, max_epochs=args["epochs"],
         gpus=gpus,
+        log_every_n_steps=3,
+        flush_logs_every_n_steps=50,
         callbacks=[checkpoint_callback, early_stop_callback],
         logger=logger,
         accelerator='ddp'

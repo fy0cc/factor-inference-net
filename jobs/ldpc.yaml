@@ -1,0 +1,36 @@
+---
+args:
+  gamma: 0.99
+  mode: train
+  model: multigatconvmemory
+  epochs: 1000
+  max_lr: 0.01
+  outdir: "outputs/ldpc"
+  init_lr: 0.002
+  loss_fn: bce
+  readout: varmlp
+  patience: 20
+  nstep_schedule_method: constant
+  nstep_start: 30
+  optimizer_name: adam
+  scheduler_name: plateau
+  scheduler_patience: 50
+dataset:
+  dataroot: "fgnn/dataset/"
+  datatype: ldpc  # training data is generated on-the-fly
+  batch_size: 64
+  test_dataset: ldpc_valid_small.pt
+  normalize_target: false
+  singleton_factor: true
+model_args:
+  nstate: 64
+  nlayer: 1
+  use_bn: false
+  use_att: false
+  gat_module: gat
+  rnn_method: gru_ln
+  init_method: encode
+  add_self_loops: false
+  use_factor_net: true
+  aggregation_method: sum
+  const_factor_input: false

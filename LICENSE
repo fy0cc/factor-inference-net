@@ -31,3 +31,8 @@ Copyright (c) 2020 Matthias Fey <matthias.fey@tu-dortmund.de>
 from graph2nn:
 MIT License
 Copyright (c) Facebook, Inc. and its affiliates.
+
+from Factor-Graph-Neural-Network:
+MIT License
+Copyright (c) 2019 Zhen Zhang
+The files in folder `fgnn` are copied and re-organized from [Factor-Graph-Neural-Network](https://github.com/zzhang1987/Factor-Graph-Neural-Network/blob/master/)

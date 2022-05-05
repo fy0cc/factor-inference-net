@@ -1,0 +1,38 @@
+---
+args:
+  mode: train
+  model: multigatconvmemory
+  epochs: 1000
+  max_lr: 0.01
+  outdir: "outputs/3discrete"
+  init_lr: 0.0003
+  loss_fn: mse
+  readout: varmlp
+  patience: 20
+  nstep_schedule_method: random
+  nstep_end: 50
+  nstep_start: 30
+  nstep_linear_epochs: 50
+  plot_interval: 7
+  optimizer_name: adam
+  scheduler_name: plateau
+  scheduler_patience: 15
+dataset:
+  dataset: train/n10
+  dataroot: "data/third/discrete/"
+  datatype: 3rdbipartite
+  batch_size: 100
+  test_dataset: test/n15
+  normalize_target: false
+  singleton_factor: true
+model_args:
+  nstate: 64
+  use_bn: true
+  use_att: false
+  gat_module: gat
+  rnn_method: gru_ln
+  init_method: encode
+  add_self_loops: false
+  use_factor_net: true
+  aggregation_method: sum
+  const_factor_input: false

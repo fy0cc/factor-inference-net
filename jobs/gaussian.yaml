@@ -1,0 +1,38 @@
+---
+args:
+  mode: train
+  model: multigatconvmemory
+  epochs: 1000
+  max_lr: 0.1
+  outdir: "outputs/gaussian-all-topo"
+  init_lr: 0.002
+  loss_fn: mse
+  readout: varmlp
+  patience: 20
+  nstep_schedule_method: random
+  nstep_end: 50
+  nstep_start: 30
+  nstep_linear_epochs: 50
+  plot_interval: 7
+  optimizer_name: adam
+  scheduler_name: plateau
+  scheduler_patience: 15
+dataset:
+  dataset: n10_size10000_v3
+  dataroot: "data/gaussian/alltopo"
+  datatype: gaussianbipartite
+  batch_size: 64
+  test_dataset: n15_size10000_v3
+  normalize_target: false
+  singleton_factor: true
+model_args:
+  nstate: 64
+  use_bn: true
+  use_att: false
+  gat_module: gat
+  rnn_method: gru_ln
+  init_method: encode
+  add_self_loops: false
+  use_factor_net: true
+  aggregation_method: sum
+  const_factor_input: false
